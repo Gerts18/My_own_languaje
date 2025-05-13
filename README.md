@@ -16,7 +16,7 @@ mvn clean generate-sources compile
 ## Ejecutar
 
 ```sh
-Run main"
+Run main
 ```
 
 Reemplaza `tu.paquete.Main` por el nombre completo de tu clase principal.
