@@ -13,7 +13,7 @@ class PepsiIDE(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Pepsi IDE")
-        self.geometry("900x600")
+        self.geometry("900x800")  # Ventana más alta
 
         # Editor de código
         self.editor = tk.Text(self, wrap="none", font=("Consolas", 12))
@@ -23,15 +23,16 @@ class PepsiIDE(tk.Tk):
         btn_frame = tk.Frame(self)
         btn_frame.pack(fill="x", padx=5, pady=2)
         tk.Button(btn_frame, text="Importar archivo", command=self.importar).pack(side="left", padx=2)
+        tk.Button(btn_frame, text="Guardar código", command=self.guardar).pack(side="left", padx=2)
         tk.Button(btn_frame, text="Ejecutar", command=self.ejecutar).pack(side="left", padx=2)
         tk.Button(btn_frame, text="Exportar a Python", command=lambda: self.exportar("py")).pack(side="left", padx=2)
         tk.Button(btn_frame, text="Exportar a JavaScript", command=lambda: self.exportar("js")).pack(side="left", padx=2)
 
-        # Área de salida redimensionable con scrollbar
+        # Área de salida redimensionable con scrollbar, ocupa más espacio y es expandible
         salida_frame = tk.Frame(self)
         salida_frame.pack(fill="both", expand=True, padx=5, pady=2)
         tk.Label(salida_frame, text="Salida:").pack(anchor="w")
-        self.salida = tk.Text(salida_frame, height=10, wrap="none", font=("Consolas", 11), bg="#222", fg="#0f0")
+        self.salida = tk.Text(salida_frame, height=20, wrap="none", font=("Consolas", 11), bg="#222", fg="#0f0")
         self.salida.pack(side="left", fill="both", expand=True)
         scrollbar = tk.Scrollbar(salida_frame, command=self.salida.yview)
         scrollbar.pack(side="right", fill="y")
@@ -45,6 +46,30 @@ class PepsiIDE(tk.Tk):
             self.editor.delete("1.0", tk.END)
             self.editor.insert(tk.END, code)
 
+    def guardar(self):
+        code = self.editor.get("1.0", tk.END)
+        file_path = filedialog.asksaveasfilename(defaultextension=".pepsi", filetypes=[("Pepsi files", "*.pepsi"), ("All files", "*.*")])
+        if file_path:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(code)
+
+    def limpiar_salida(self, output):
+        # Solo deja líneas que no empiezan con [INFO], [ERROR], [WARNING], o están vacías
+        relevantes = []
+        for line in output.splitlines():
+            l = line.strip()
+            if not l or l.startswith("[INFO]") or l.startswith("[ERROR]") or l.startswith("[WARNING]"):
+                continue
+            if l.startswith("BUILD SUCCESS") or l.startswith("BUILD FAILURE"):
+                continue
+            if l.startswith("---") or l.startswith("Total time:") or l.startswith("Finished at:") or l.startswith("from pom.xml"):
+                continue
+            # Filtra errores de token recognition (espacios raros)
+            if "token recognition error" in l:
+                continue
+            relevantes.append(line)
+        return "\n".join(relevantes)
+
     def ejecutar(self):
         code = self.editor.get("1.0", tk.END)
         os.makedirs(os.path.dirname(TEMP_FILE), exist_ok=True)
@@ -56,7 +81,7 @@ class PepsiIDE(tk.Tk):
             cmd = [
                 "mvn.cmd",
                 "-Dexec.executable=java",
-                '-Dexec.args=-classpath %classpath milenguaje.Main temp.pepsi',  # <-- Cambiado aquí
+                '-Dexec.args=-classpath %classpath milenguaje.Main temp.pepsi',
                 "-Dexec.classpathScope=runtime",
                 "-DskipTests=true",
                 "--no-transfer-progress",
@@ -65,6 +90,7 @@ class PepsiIDE(tk.Tk):
             ]
             proc = subprocess.run(cmd, cwd=JAVA_PROJECT_DIR, capture_output=True, text=True, timeout=30)
             output = proc.stdout + "\n" + proc.stderr
+            output = self.limpiar_salida(output)  # <-- Limpiar la salida aquí
         except Exception as e:
             output = f"Error al ejecutar: {e}"
         self.salida.insert(tk.END, output)
@@ -78,7 +104,7 @@ class PepsiIDE(tk.Tk):
             cmd = [
                 "mvn.cmd",
                 "-Dexec.executable=java",
-                '-Dexec.args=-classpath %classpath milenguaje.Main temp.pepsi',  # <-- Cambiado aquí
+                '-Dexec.args=-classpath %classpath milenguaje.Main temp.pepsi',
                 "-Dexec.classpathScope=runtime",
                 "-DskipTests=true",
                 "--no-transfer-progress",
