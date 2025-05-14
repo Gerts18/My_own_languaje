@@ -1,0 +1,23 @@
+ent x -> 10;
+ent y -> 20;
+ent z -> y (resta) x;
+
+
+Imprime(x);
+Imprime(x (suma) y);
+
+SoloSi (x [mayorQue] y [Y] x [menorQue] 9 ) {
+    Imprime("Primer condicion cumplida");
+}
+SoloSiTamb (x [igual] y [oTambien] x [menorQue] y) {
+    Imprime("Segunda condicion cumplida");
+}
+SiNo {
+    Imprime("No se cumple ninguna condicion");
+}
+
+ent contador -> 2;
+Recorre (contador; contador [menorQue] 7; contador -> contador (suma) 1) {
+    Imprime(contador);
+}
+

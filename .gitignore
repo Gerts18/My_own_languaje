@@ -4,3 +4,4 @@ target
 *.log
 *.tokens
 *.interp
+venv
