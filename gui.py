@@ -8,19 +8,24 @@ JAVA_PROJECT_DIR = os.path.dirname(__file__)
 RESOURCES_DIR = os.path.join(JAVA_PROJECT_DIR, "src", "test", "resources")
 TEMP_FILE = os.path.join(RESOURCES_DIR, "temp.pepsi")
 
-# Colores y estilos
+# Colores y estilos - Tema oscuro
 THEME = {
-    "bg_main": "#f5f5f5",             # Color de fondo principal
-    "bg_editor": "#ffffff",           # Color de fondo del editor
-    "bg_linenumbers": "#e0e0e0",      # Color de fondo de los números de línea
-    "fg_linenumbers": "#606060",      # Color del texto de los números de línea
-    "bg_output": "#1e1e2e",           # Color de fondo para la salida (más oscuro pero elegante)
-    "fg_output": "#50fa7b",           # Color del texto de salida (verde más suave)
-    "accent": "#3498db",              # Color de acento para botones y elementos destacados
-    "btn_hover": "#2980b9",           # Color de hover para botones
-    "editor_font": ("Consolas", 12),  # Fuente del editor
-    "output_font": ("Consolas", 11),  # Fuente de la salida
-    "btn_font": ("Segoe UI", 10)      # Fuente de los botones
+    "bg_main": "#2e3440",           # Fondo principal oscuro (Nord theme)
+    "bg_editor": "#3b4252",         # Fondo del editor más oscuro
+    "bg_linenumbers": "#2e3440",    # Fondo de números de línea
+    "fg_linenumbers": "#d8dee9",    # Color del texto de números (gris claro)
+    "bg_output": "#1e1e2e",         # Color de fondo para la salida (aún más oscuro)
+    "fg_output": "#50fa7b",         # Color del texto de salida (verde)
+    "accent": "#5e81ac",            # Color de acento para elementos destacados (azul)
+    "btn_hover": "#81a1c1",         # Color de hover para botones
+    "editor_font": ("Consolas", 12), # Fuente del editor
+    "output_font": ("Consolas", 11), # Fuente de la salida
+    "btn_font": ("Segoe UI", 10),   # Fuente de los botones
+    "text_color": "#eceff4",        # Color de texto principal (claro)
+    "border_color": "#4c566a",      # Color para bordes
+    "title_bg": "#5e81ac",          # Color de la barra de título
+    "scrollbar_bg": "#4c566a",      # Color de fondo de scrollbar
+    "scrollbar_fg": "#81a1c1",      # Color de scrollbar
 }
 
 class LineNumbers(tk.Canvas):
@@ -62,18 +67,67 @@ class SyntaxHighlightingText(tk.Text):
         super().__init__(master, **kwargs)
         
         # Configurar las etiquetas para resaltado básico
-        self.tag_configure("keyword", foreground="#007acc")
-        self.tag_configure("string", foreground="#ce9178")
-        self.tag_configure("comment", foreground="#6a9955", font=(THEME["editor_font"][0], THEME["editor_font"][1], "italic"))
-        self.tag_configure("number", foreground="#b5cea8")
+        self.tag_configure("keyword", foreground="#88c0d0")    # Palabras clave en azul claro
+        self.tag_configure("string", foreground="#a3be8c")     # Strings en verde
+        self.tag_configure("comment", foreground="#b48ead", font=(THEME["editor_font"][0], THEME["editor_font"][1], "italic"))  # Comentarios en morado
+        self.tag_configure("number", foreground="#ebcb8b")     # Números en amarillo claro
+        self.tag_configure("operator", foreground="#d08770")   # Operadores en naranja
+        self.tag_configure("brackets", foreground="#88c0d0")   # Corchetes en azul
         
         # Establecer vinculaciones para actualizar el resaltado
         self.bind("<KeyRelease>", self.highlight_syntax)
         
     def highlight_syntax(self, event=None):
-        # Implementación básica - en un IDE real sería más compleja
-        # Solo para efectos visuales en esta versión
-        pass
+        # Implementación básica de resaltado de sintaxis para Pepsi
+        self.tag_remove("keyword", "1.0", tk.END)
+        self.tag_remove("string", "1.0", tk.END)
+        self.tag_remove("comment", "1.0", tk.END)
+        self.tag_remove("number", "1.0", tk.END)
+        self.tag_remove("operator", "1.0", tk.END)
+        self.tag_remove("brackets", "1.0", tk.END)
+        
+        # Palabras clave de Pepsi (detectadas en el ejemplo)
+        keywords = ["ent", "Imprime", "SoloSi", "SoloSiTamb", "SiNo", "Recorre"]
+        
+        # Buscar y resaltar palabras clave
+        for keyword in keywords:
+            start_pos = "1.0"
+            while True:
+                start_pos = self.search(keyword, start_pos, tk.END)
+                if not start_pos:
+                    break
+                end_pos = f"{start_pos}+{len(keyword)}c"
+                self.tag_add("keyword", start_pos, end_pos)
+                start_pos = end_pos
+                
+        # Operadores
+        operators = ["->", "+", "-", "*", "/", "[", "]", "(", ")", "{", "}", "<", ">", "="]
+        for op in operators:
+            start_pos = "1.0"
+            while True:
+                start_pos = self.search(op, start_pos, tk.END)
+                if not start_pos:
+                    break
+                end_pos = f"{start_pos}+{len(op)}c"
+                if op in "[](){}":
+                    self.tag_add("brackets", start_pos, end_pos)
+                else:
+                    self.tag_add("operator", start_pos, end_pos)
+                start_pos = end_pos
+                
+        # Números
+        start_pos = "1.0"
+        while True:
+            # Buscar cualquier secuencia de dígitos
+            start_pos = self.search(r'\d+', start_pos, tk.END, regexp=True)
+            if not start_pos:
+                break
+            # Encontrar el final del número
+            end_pos = f"{start_pos}+1c"
+            while self.get(end_pos) in "0123456789.":
+                end_pos = f"{end_pos}+1c"
+            self.tag_add("number", start_pos, end_pos)
+            start_pos = end_pos
 
 class PepsiIDE(tk.Tk):
     def __init__(self):
@@ -91,22 +145,56 @@ class PepsiIDE(tk.Tk):
         # Configurar el estilo para ttk
         style = ttk.Style()
         style.theme_use('clam')
-        style.configure('Accent.TButton', 
-                        background=THEME["accent"], 
-                        foreground="white", 
+        
+        # Configurar el estilo de scrollbars
+        style.configure("Horizontal.TScrollbar", 
+                      background=THEME["scrollbar_bg"],
+                      troughcolor=THEME["bg_main"], 
+                      bordercolor=THEME["border_color"],
+                      arrowcolor=THEME["text_color"])
+                      
+        style.configure("Vertical.TScrollbar", 
+                      background=THEME["scrollbar_bg"],
+                      troughcolor=THEME["bg_main"], 
+                      bordercolor=THEME["border_color"],
+                      arrowcolor=THEME["text_color"])
+        
+        # Map para los estados de scrollbar
+        style.map("Horizontal.TScrollbar",
+                background=[("active", THEME["scrollbar_fg"]), 
+                           ("!disabled", THEME["scrollbar_bg"])])
+        style.map("Vertical.TScrollbar",
+                background=[("active", THEME["scrollbar_fg"]), 
+                           ("!disabled", THEME["scrollbar_bg"])])
+        
+        # Estilos de botones con colores diferentes
+        button_styles = {
+            'Import.TButton': {"bg": "#4CAF50", "hover": "#388E3C"},  # Verde - Importar
+            'Save.TButton': {"bg": "#2196F3", "hover": "#1565C0"},    # Azul - Guardar
+            'Run.TButton': {"bg": "#FF5722", "hover": "#E64A19"},     # Naranja - Ejecutar
+            'Python.TButton': {"bg": "#3776AB", "hover": "#2E5D8A"},  # Azul Python
+            'JS.TButton': {"bg": "#F7DF1E", "hover": "#D4BE0B", "fg": "black"}  # Amarillo JS
+        }
+        
+        # Crear cada estilo
+        for style_name, colors in button_styles.items():
+            style.configure(style_name, 
+                        background=colors["bg"], 
+                        foreground=colors.get("fg", "white"), 
                         font=THEME["btn_font"])
-        style.map('Accent.TButton', 
-                 background=[('active', THEME["btn_hover"])])
+            style.map(style_name, 
+                     background=[('active', colors["hover"])])
         
         # Frame principal con borde y sombra simulada
-        main_frame = tk.Frame(self, bg=THEME["bg_main"], bd=1, relief=tk.RIDGE)
+        main_frame = tk.Frame(self, bg=THEME["bg_main"], bd=1, relief=tk.RIDGE, 
+                             borderwidth=1, highlightbackground=THEME["border_color"])
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)
                 
         # Título con estilo
-        title_frame = tk.Frame(main_frame, bg=THEME["accent"], height=30)
+        title_frame = tk.Frame(main_frame, bg=THEME["title_bg"], height=30)
         title_frame.pack(fill="x")
         tk.Label(title_frame, text="Pepsi IDE", font=("Segoe UI", 12, "bold"), 
-                 fg="white", bg=THEME["accent"], padx=10).pack(side="left")
+                 fg="white", bg=THEME["title_bg"], padx=10).pack(side="left")
 
         # Editor + líneas con mejor integración
         editor_frame = tk.Frame(main_frame, bg=THEME["bg_editor"])
@@ -114,7 +202,7 @@ class PepsiIDE(tk.Tk):
         
         # Panel editor con scroll
         editor_container = tk.Frame(editor_frame, bg=THEME["bg_editor"])
-        editor_container.pack(side="left", fill="both", expand=True)
+        editor_container.pack(fill="both", expand=True)
         
         # Crear widget de editor de texto con resaltado básico
         self.editor = SyntaxHighlightingText(
@@ -122,9 +210,10 @@ class PepsiIDE(tk.Tk):
             wrap="none", 
             font=THEME["editor_font"],
             bg=THEME["bg_editor"],
-            insertbackground="black",
-            selectbackground="#add8e6",
-            selectforeground="black",
+            fg=THEME["text_color"],
+            insertbackground=THEME["text_color"],
+            selectbackground="#5e81ac",
+            selectforeground="white",
             undo=True,
             padx=5,
             pady=5
@@ -134,54 +223,67 @@ class PepsiIDE(tk.Tk):
         self.lns = LineNumbers(editor_container, self.editor, bg=THEME["bg_linenumbers"])
         self.lns.pack(side="left", fill="y")
         
-        # Crear scrollbars con estilo
-        scrollbar_y = ttk.Scrollbar(editor_container, orient="vertical", command=self.editor.yview)
+        # Scrollbar vertical
+        scrollbar_y = ttk.Scrollbar(editor_container, orient="vertical", 
+                                  command=self.editor.yview, 
+                                  style="Vertical.TScrollbar")
         scrollbar_y.pack(side="right", fill="y")
         
-        scrollbar_x = ttk.Scrollbar(editor_frame, orient="horizontal", command=self.editor.xview)
+        # Empacar el editor - CORREGIDO: debe estar antes del scrollbar horizontal 
+        self.editor.pack(side="top", fill="both", expand=True)
+        
+        # Scrollbar horizontal - CORREGIDO: ahora dentro de editor_container
+        scrollbar_x = ttk.Scrollbar(editor_container, orient="horizontal", 
+                                  command=self.editor.xview,
+                                  style="Horizontal.TScrollbar")
         scrollbar_x.pack(side="bottom", fill="x")
         
         self.editor.config(
             yscrollcommand=self._on_editor_scroll_y,
             xscrollcommand=scrollbar_x.set
         )
-        self.editor.pack(side="left", fill="both", expand=True)
 
         # Barra de botones con estilo mejorado
         buttons_frame = tk.Frame(main_frame, bg=THEME["bg_main"], pady=10)
         buttons_frame.pack(fill="x")
         
+        # Botones con iconos (opcionales)
         btns = [
-            ("Importar archivo", self.importar),
-            ("Guardar código", self.guardar),
-            ("Ejecutar", self.ejecutar),
-            ("Exportar a Python", lambda: self.exportar("py")),
-            ("Exportar a JavaScript", lambda: self.exportar("js")),
+            ("Importar archivo", self.importar, 'Import.TButton', "📂"),  # Icono de carpeta
+            ("Guardar código", self.guardar, 'Save.TButton', "💾"),       # Icono de disco
+            ("Ejecutar", self.ejecutar, 'Run.TButton', "▶️"),             # Icono de play
+            ("Exportar a Python", lambda: self.exportar("py"), 'Python.TButton', "🐍"),  # Icono de serpiente
+            ("Exportar a JavaScript", lambda: self.exportar("js"), 'JS.TButton', "☕"),   # Icono de taza
         ]
         
-        for i, (text, command) in enumerate(btns):
+        for i, (text, command, style_name, icon) in enumerate(btns):
             btn = ttk.Button(
                 buttons_frame, 
-                text=text, 
+                text=f"{icon} {text}", 
                 command=command,
-                style='Accent.TButton'
+                style=style_name
             )
             btn.pack(side="left", padx=5)
 
+        # ==================== SALIDA/TERMINAL MEJORADA ======================
         # Panel de salida con estilo mejorado
         output_frame = tk.LabelFrame(
             main_frame, 
             text="Salida", 
             font=("Segoe UI", 10, "bold"),
             bg=THEME["bg_main"],
-            fg=THEME["accent"],
+            fg=THEME["text_color"],
             pady=5
         )
         output_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
-        # Text widget para la salida con scrollbars
+        # Container para la salida para mantener consistencia con el diseño del editor
+        output_container = tk.Frame(output_frame, bg=THEME["bg_output"])
+        output_container.pack(fill="both", expand=True)
+        
+        # Text widget para la salida con scrollbars - ESTRUCTURA CORREGIDA
         self.salida = tk.Text(
-            output_frame, 
+            output_container, 
             height=12, 
             wrap="none",
             font=THEME["output_font"], 
@@ -192,18 +294,25 @@ class PepsiIDE(tk.Tk):
             bd=0
         )
         
-        # Scrollbars para salida
-        output_scroll_y = ttk.Scrollbar(output_frame, orient="vertical", command=self.salida.yview)
+        # Scrollbars para salida - CORREGIDO para seguir estructura del editor
+        output_scroll_y = ttk.Scrollbar(output_container, orient="vertical", 
+                                      command=self.salida.yview,
+                                      style="Vertical.TScrollbar")
         output_scroll_y.pack(side="right", fill="y")
         
-        output_scroll_x = ttk.Scrollbar(output_frame, orient="horizontal", command=self.salida.xview)
+        # Empacar la salida antes del scrollbar horizontal
+        self.salida.pack(side="top", fill="both", expand=True)
+        
+        # Scrollbar horizontal para la salida - CORREGIDO
+        output_scroll_x = ttk.Scrollbar(output_container, orient="horizontal", 
+                                      command=self.salida.xview,
+                                      style="Horizontal.TScrollbar")
         output_scroll_x.pack(side="bottom", fill="x")
         
         self.salida.config(
             yscrollcommand=output_scroll_y.set,
             xscrollcommand=output_scroll_x.set
         )
-        self.salida.pack(side="left", fill="both", expand=True)
         
         # Barra de estado
         self.status_bar = tk.Label(
@@ -212,7 +321,8 @@ class PepsiIDE(tk.Tk):
             bd=1, 
             relief=tk.SUNKEN, 
             anchor=tk.W,
-            bg="#f0f0f0",
+            bg=THEME["bg_editor"],
+            fg=THEME["text_color"],
             font=("Segoe UI", 9)
         )
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
