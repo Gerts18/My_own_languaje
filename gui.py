@@ -116,10 +116,10 @@ class PepsiIDE(tk.Tk):
                     errores.append(l)
                 elif "token recognition error" in l:
                     # ANTLR lexer error
-                    errores.append("Error léxico: " + l)
+                    errores.append("Error léxico NO FUE POSIBLE LA EJECUCION ")
             if not errores:
                 # fallback muy simple
-                errores = ["Error desconocido. Revisa tu sintaxis."]
+                errores = ["Error lexico, NO FUE POSIBLE LA EJECUCION"]
             messagebox.showerror("Error de sintaxis", "\n".join(errores))
             return
 

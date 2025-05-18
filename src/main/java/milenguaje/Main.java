@@ -9,13 +9,13 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.BailErrorStrategy;
-import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.misc.ParseCancellationException;
+import org.antlr.v4.runtime.RecognitionException;
 
 public class Main {
 
     private static final String EXTENSION = "pepsi";
-    private static final String DIRBASE = "src/test/resources/";
+    private static final String DIRBASE   = "src/test/resources/";
 
     public static void main(String[] args) {
         String[] files = args.length == 0
@@ -30,18 +30,19 @@ public class Main {
 
                 // 2) Crear lexer y stream de tokens
                 LanguageLexer lexer = new LanguageLexer(in);
+                lexer.removeErrorListeners();               // ← elimina el listener por defecto del lexer
                 CommonTokenStream tokens = new CommonTokenStream(lexer);
 
                 // 3) Crear parser y configurar “fail-fast”
                 LanguageParser parser = new LanguageParser(tokens);
-                parser.removeErrorListeners();                           // quitamos listeners por defecto
-                parser.setErrorHandler(new BailErrorStrategy());         // paramos al primer error
-                parser.addErrorListener(ThrowingErrorListener.INSTANCE); // lanzamos excepción clara
+                parser.removeErrorListeners();              // elimina listener por defecto del parser
+                parser.setErrorHandler(new BailErrorStrategy());
+                parser.addErrorListener(ThrowingErrorListener.INSTANCE);
 
                 // 4) Parsear
                 LanguageParser.ProgramContext tree = parser.program();
 
-                // 5) Ejecutar
+                // 5) Ejecutar tu visitor
                 new LanguageCustomVisitor().visit(tree);
 
                 // 6) Traducir a Python
@@ -62,7 +63,7 @@ public class Main {
                 System.exit(0);
 
             } catch (ParseCancellationException | RecognitionException e) {
-                // Solo el mensaje claro de ThrowingErrorListener
+                // Sólo imprimimos el mensaje de tu ThrowingErrorListener
                 System.err.println(e.getMessage());
                 System.exit(1);
             } catch (IOException e) {
