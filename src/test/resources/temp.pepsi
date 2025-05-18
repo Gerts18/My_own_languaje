@@ -20,3 +20,5 @@ ent contador -> 2;
 Recorre (contador; contador [menorQue] 7; contador -> contador (suma) 1) {
     Imprime(contador);
 }
+
+

@@ -8,43 +8,68 @@ import java.nio.file.Paths;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.BailErrorStrategy;
+import org.antlr.v4.runtime.misc.ParseCancellationException;
+import org.antlr.v4.runtime.RecognitionException;
 
 public class Main {
 
     private static final String EXTENSION = "pepsi";
-    private static final String DIRBASE = "src/test/resources/"; 
+    private static final String DIRBASE   = "src/test/resources/";
 
-    public static void main(String[] args) throws IOException {
-        String files[] = args.length==0? new String[]{ "test." + EXTENSION } : args;
-        System.out.println("Dirbase: " + DIRBASE);
-        for (String file : files){
+    public static void main(String[] args) {
+        String[] files = args.length == 0
+            ? new String[]{ "test." + EXTENSION }
+            : args;
+
+        for (String file : files) {
             System.out.println("START: " + file);
+            try {
+                // 1) Leer el archivo de entrada
+                CharStream in = CharStreams.fromFileName(DIRBASE + file);
 
-            CharStream in = CharStreams.fromFileName(DIRBASE + file); // Por aqui se lee el archivo, de aqui va tener que pasarse desde la interfaz grafica 
-            LanguageLexer lexer = new LanguageLexer(in);
-            CommonTokenStream tokens = new CommonTokenStream(lexer);
-            LanguageParser parser = new LanguageParser(tokens);
+                // 2) Crear lexer y stream de tokens
+                LanguageLexer lexer = new LanguageLexer(in);
+                lexer.removeErrorListeners();               // ← elimina el listener por defecto del lexer
+                CommonTokenStream tokens = new CommonTokenStream(lexer);
 
-            LanguageParser.ProgramContext tree = parser.program();
-            
-            LanguageCustomVisitor visitor = new LanguageCustomVisitor();
-            visitor.visit(tree);
+                // 3) Crear parser y configurar “fail-fast”
+                LanguageParser parser = new LanguageParser(tokens);
+                parser.removeErrorListeners();              // elimina listener por defecto del parser
+                parser.setErrorHandler(new BailErrorStrategy());
+                parser.addErrorListener(ThrowingErrorListener.INSTANCE);
 
-            // Traducción a Python
-            LanguageToPythonVisitor pyVisitor = new LanguageToPythonVisitor();
-            String pythonCode = pyVisitor.visit(tree);
-            String outputFile = file.replaceAll("\\.pepsi$", ".py");
-            Files.write(Paths.get(DIRBASE + outputFile), pythonCode.getBytes(StandardCharsets.UTF_8));
-            System.out.println("Archivo Python generado: " + outputFile);
+                // 4) Parsear
+                LanguageParser.ProgramContext tree = parser.program();
 
-            // Traducción a JavaScript
-            LanguageToJavaScriptVisitor jsVisitor = new LanguageToJavaScriptVisitor();
-            String jsCode = jsVisitor.visit(tree);
-            String jsOutputFile = file.replaceAll("\\.pepsi$", ".js");
-            Files.write(Paths.get(DIRBASE + jsOutputFile), jsCode.getBytes(StandardCharsets.UTF_8));
-            System.out.println("Archivo JavaScript generado: " + jsOutputFile);
+                // 5) Ejecutar tu visitor
+                new LanguageCustomVisitor().visit(tree);
 
-            System.out.println("FINISH: " + file);
+                // 6) Traducir a Python
+                String pyCode = new LanguageToPythonVisitor().visit(tree);
+                String pyOut  = file.replaceAll("\\.pepsi$", ".py");
+                Files.write(Paths.get(DIRBASE + pyOut),
+                            pyCode.getBytes(StandardCharsets.UTF_8));
+                System.out.println("Archivo Python generado: " + pyOut);
+
+                // 7) Traducir a JavaScript
+                String jsCode = new LanguageToJavaScriptVisitor().visit(tree);
+                String jsOut  = file.replaceAll("\\.pepsi$", ".js");
+                Files.write(Paths.get(DIRBASE + jsOut),
+                            jsCode.getBytes(StandardCharsets.UTF_8));
+                System.out.println("Archivo JavaScript generado: " + jsOut);
+
+                System.out.println("FINISH: " + file);
+                System.exit(0);
+
+            } catch (ParseCancellationException | RecognitionException e) {
+                // Sólo imprimimos el mensaje de tu ThrowingErrorListener
+                System.err.println(e.getMessage());
+                System.exit(1);
+            } catch (IOException e) {
+                System.err.println("I/O Error: " + e.getMessage());
+                System.exit(2);
+            }
         }
     }
 }
