@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 import subprocess
 import os
 
@@ -8,63 +8,231 @@ JAVA_PROJECT_DIR = os.path.dirname(__file__)
 RESOURCES_DIR = os.path.join(JAVA_PROJECT_DIR, "src", "test", "resources")
 TEMP_FILE = os.path.join(RESOURCES_DIR, "temp.pepsi")
 
-class LineNumbers(tk.Text):
+# Colores y estilos
+THEME = {
+    "bg_main": "#f5f5f5",             # Color de fondo principal
+    "bg_editor": "#ffffff",           # Color de fondo del editor
+    "bg_linenumbers": "#e0e0e0",      # Color de fondo de los números de línea
+    "fg_linenumbers": "#606060",      # Color del texto de los números de línea
+    "bg_output": "#1e1e2e",           # Color de fondo para la salida (más oscuro pero elegante)
+    "fg_output": "#50fa7b",           # Color del texto de salida (verde más suave)
+    "accent": "#3498db",              # Color de acento para botones y elementos destacados
+    "btn_hover": "#2980b9",           # Color de hover para botones
+    "editor_font": ("Consolas", 12),  # Fuente del editor
+    "output_font": ("Consolas", 11),  # Fuente de la salida
+    "btn_font": ("Segoe UI", 10)      # Fuente de los botones
+}
+
+class LineNumbers(tk.Canvas):
     def __init__(self, master, text_widget, **kwargs):
-        super().__init__(master, width=4, padx=4, takefocus=0, **kwargs)
+        super().__init__(master, width=40, highlightthickness=0, bd=0, **kwargs)
         self.text_widget = text_widget
-        self.config(state='disabled', bg='#f0f0f0', fg='#888')
-        text_widget.bind('<KeyRelease>', self.redraw)
-        text_widget.bind('<MouseWheel>', self.redraw)
-        text_widget.bind('<Return>', self.redraw)
-        self.redraw()
+        self.config(bg=THEME["bg_linenumbers"])
+        
+        # Sincronizar scroll del editor con el canvas de líneas
+        self.text_widget.bind("<Configure>", self.redraw)
+        self.text_widget.bind("<KeyRelease>", self.redraw)
+        self.text_widget.bind("<MouseWheel>", self.redraw)
 
     def redraw(self, event=None):
-        self.config(state='normal')
-        self.delete('1.0', tk.END)
-        n = int(self.text_widget.index('end-1c').split('.')[0])
-        for i in range(1, n+1):
-            self.insert(tk.END, f"{i}\n")
-        self.config(state='disabled')
+        # Limpiar canvas
+        self.delete("all")
+        
+        # Obtener información visible del texto
+        i = self.text_widget.index("@0,0")
+        while True:
+            dline = self.text_widget.dlineinfo(i)
+            if dline is None:
+                break
+                
+            y = dline[1]  # Posición Y de la línea
+            linenum = str(i).split(".")[0]
+            self.create_text(
+                20, 
+                y + 2, 
+                anchor="n", 
+                text=linenum, 
+                fill=THEME["fg_linenumbers"],
+                font=THEME["editor_font"]
+            )
+            i = self.text_widget.index(f"{i}+1line")
+
+class SyntaxHighlightingText(tk.Text):
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+        
+        # Configurar las etiquetas para resaltado básico
+        self.tag_configure("keyword", foreground="#007acc")
+        self.tag_configure("string", foreground="#ce9178")
+        self.tag_configure("comment", foreground="#6a9955", font=(THEME["editor_font"][0], THEME["editor_font"][1], "italic"))
+        self.tag_configure("number", foreground="#b5cea8")
+        
+        # Establecer vinculaciones para actualizar el resaltado
+        self.bind("<KeyRelease>", self.highlight_syntax)
+        
+    def highlight_syntax(self, event=None):
+        # Implementación básica - en un IDE real sería más compleja
+        # Solo para efectos visuales en esta versión
+        pass
 
 class PepsiIDE(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Pepsi IDE")
         self.geometry("900x800")
+        self.configure(bg=THEME["bg_main"])
+        
+        # Intentar cargar un icono si está disponible
+        try:
+            self.iconbitmap("pepsi.ico")
+        except:
+            pass
+            
+        # Configurar el estilo para ttk
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure('Accent.TButton', 
+                        background=THEME["accent"], 
+                        foreground="white", 
+                        font=THEME["btn_font"])
+        style.map('Accent.TButton', 
+                 background=[('active', THEME["btn_hover"])])
+        
+        # Frame principal con borde y sombra simulada
+        main_frame = tk.Frame(self, bg=THEME["bg_main"], bd=1, relief=tk.RIDGE)
+        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+                
+        # Título con estilo
+        title_frame = tk.Frame(main_frame, bg=THEME["accent"], height=30)
+        title_frame.pack(fill="x")
+        tk.Label(title_frame, text="Pepsi IDE", font=("Segoe UI", 12, "bold"), 
+                 fg="white", bg=THEME["accent"], padx=10).pack(side="left")
 
-        # Editor + líneas
-        fr = tk.Frame(self); fr.pack(fill="both", expand=True, padx=5, pady=5)
-        self.editor = tk.Text(fr, wrap="none", font=("Consolas", 12))
-        self.lns = LineNumbers(fr, self.editor)
+        # Editor + líneas con mejor integración
+        editor_frame = tk.Frame(main_frame, bg=THEME["bg_editor"])
+        editor_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Panel editor con scroll
+        editor_container = tk.Frame(editor_frame, bg=THEME["bg_editor"])
+        editor_container.pack(side="left", fill="both", expand=True)
+        
+        # Crear widget de editor de texto con resaltado básico
+        self.editor = SyntaxHighlightingText(
+            editor_container, 
+            wrap="none", 
+            font=THEME["editor_font"],
+            bg=THEME["bg_editor"],
+            insertbackground="black",
+            selectbackground="#add8e6",
+            selectforeground="black",
+            undo=True,
+            padx=5,
+            pady=5
+        )
+        
+        # Números de línea mejorados (canvas)
+        self.lns = LineNumbers(editor_container, self.editor, bg=THEME["bg_linenumbers"])
         self.lns.pack(side="left", fill="y")
-        self.editor.pack(side="right", fill="both", expand=True)
-        sy = tk.Scrollbar(fr, command=self._on_scroll); sy.pack(side="right", fill="y")
-        self.editor.config(yscrollcommand=sy.set)
+        
+        # Crear scrollbars con estilo
+        scrollbar_y = ttk.Scrollbar(editor_container, orient="vertical", command=self.editor.yview)
+        scrollbar_y.pack(side="right", fill="y")
+        
+        scrollbar_x = ttk.Scrollbar(editor_frame, orient="horizontal", command=self.editor.xview)
+        scrollbar_x.pack(side="bottom", fill="x")
+        
+        self.editor.config(
+            yscrollcommand=self._on_editor_scroll_y,
+            xscrollcommand=scrollbar_x.set
+        )
+        self.editor.pack(side="left", fill="both", expand=True)
 
-        # Botones
+        # Barra de botones con estilo mejorado
+        buttons_frame = tk.Frame(main_frame, bg=THEME["bg_main"], pady=10)
+        buttons_frame.pack(fill="x")
+        
         btns = [
-          ("Importar archivo", self.importar),
-          ("Guardar código",  self.guardar),
-          ("Ejecutar",         self.ejecutar),
-          ("Exportar a Python", lambda:self.exportar("py")),
-          ("Exportar a JavaScript", lambda:self.exportar("js")),
+            ("Importar archivo", self.importar),
+            ("Guardar código", self.guardar),
+            ("Ejecutar", self.ejecutar),
+            ("Exportar a Python", lambda: self.exportar("py")),
+            ("Exportar a JavaScript", lambda: self.exportar("js")),
         ]
-        bf = tk.Frame(self); bf.pack(fill="x", padx=5, pady=2)
-        for t,c in btns:
-            tk.Button(bf, text=t, command=c).pack(side="left", padx=2)
+        
+        for i, (text, command) in enumerate(btns):
+            btn = ttk.Button(
+                buttons_frame, 
+                text=text, 
+                command=command,
+                style='Accent.TButton'
+            )
+            btn.pack(side="left", padx=5)
 
-        # Salida
-        sf = tk.Frame(self); sf.pack(fill="both", expand=True, padx=5, pady=2)
-        tk.Label(sf, text="Salida:").pack(anchor="w")
-        self.salida = tk.Text(sf, height=20, wrap="none",
-                              font=("Consolas",11), bg="#222", fg="#0f0")
+        # Panel de salida con estilo mejorado
+        output_frame = tk.LabelFrame(
+            main_frame, 
+            text="Salida", 
+            font=("Segoe UI", 10, "bold"),
+            bg=THEME["bg_main"],
+            fg=THEME["accent"],
+            pady=5
+        )
+        output_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Text widget para la salida con scrollbars
+        self.salida = tk.Text(
+            output_frame, 
+            height=12, 
+            wrap="none",
+            font=THEME["output_font"], 
+            bg=THEME["bg_output"], 
+            fg=THEME["fg_output"],
+            padx=10,
+            pady=10,
+            bd=0
+        )
+        
+        # Scrollbars para salida
+        output_scroll_y = ttk.Scrollbar(output_frame, orient="vertical", command=self.salida.yview)
+        output_scroll_y.pack(side="right", fill="y")
+        
+        output_scroll_x = ttk.Scrollbar(output_frame, orient="horizontal", command=self.salida.xview)
+        output_scroll_x.pack(side="bottom", fill="x")
+        
+        self.salida.config(
+            yscrollcommand=output_scroll_y.set,
+            xscrollcommand=output_scroll_x.set
+        )
         self.salida.pack(side="left", fill="both", expand=True)
-        so = tk.Scrollbar(sf, command=self.salida.yview); so.pack(side="right", fill="y")
-        self.salida.config(yscrollcommand=so.set)
+        
+        # Barra de estado
+        self.status_bar = tk.Label(
+            main_frame, 
+            text="Listo", 
+            bd=1, 
+            relief=tk.SUNKEN, 
+            anchor=tk.W,
+            bg="#f0f0f0",
+            font=("Segoe UI", 9)
+        )
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        # Enlazar eventos para actualizar la barra de estado
+        self.editor.bind("<KeyRelease>", self._update_status)
+        self.editor.bind("<Button-1>", self._update_status)
 
-    def _on_scroll(self, *args):
-        self.editor.yview(*args)
-        self.lns.yview(*args)
+    def _on_editor_scroll_y(self, *args):
+        # Sincronizar scrollbar con el texto y las líneas
+        self.lns.yview_moveto(args[0])
+        scrollbar_actual = self.editor.yview()
+        self.lns.redraw()  # Redibujar las líneas al hacer scroll
+        return args
+
+    def _update_status(self, event=None):
+        # Actualizar información de posición en la barra de estado
+        position = self.editor.index(tk.INSERT).split('.')
+        line, column = position[0], position[1]
+        self.status_bar.config(text=f"Línea: {line} | Columna: {column}")
 
     def importar(self):
         fp = filedialog.askopenfilename(filetypes=[("Pepsi files","*.pepsi"),("All","*.*")])
@@ -74,6 +242,7 @@ class PepsiIDE(tk.Tk):
         self.editor.delete("1.0",tk.END)
         self.editor.insert("1.0",txt)
         self.lns.redraw()
+        self.status_bar.config(text=f"Archivo importado: {os.path.basename(fp)}")
 
     def guardar(self):
         code = self.editor.get("1.0",tk.END)
@@ -82,6 +251,7 @@ class PepsiIDE(tk.Tk):
         if not fp: return
         with open(fp,"w",encoding="utf-8") as f:
             f.write(code)
+        self.status_bar.config(text=f"Archivo guardado: {os.path.basename(fp)}")
 
     def ejecutar(self):
         # 1) volcar a temp.pepsi
@@ -90,6 +260,7 @@ class PepsiIDE(tk.Tk):
         with open(TEMP_FILE,"w",encoding="utf-8") as f:
             f.write(code)
         self.salida.delete("1.0",tk.END)
+        self.status_bar.config(text="Ejecutando...")
 
         # 2) invocar Java via Maven
         cmd = [
@@ -104,6 +275,7 @@ class PepsiIDE(tk.Tk):
                                capture_output=True, text=True, timeout=30)
         except Exception as e:
             messagebox.showerror("Error de ejecución", str(e))
+            self.status_bar.config(text="Error en la ejecución")
             return
 
         # 3) filtrar SOLO errores de sintaxis de tu lenguaje
@@ -121,6 +293,7 @@ class PepsiIDE(tk.Tk):
                 # fallback muy simple
                 errores = ["Error lexico, NO FUE POSIBLE LA EJECUCION"]
             messagebox.showerror("Error de sintaxis", "\n".join(errores))
+            self.status_bar.config(text="Ejecución fallida: Error de sintaxis")
             return
 
         # 4) si todo ok, mostrar salida limpia
@@ -130,6 +303,7 @@ class PepsiIDE(tk.Tk):
                 continue
             clean.append(l)
         self.salida.insert("1.0", "\n".join(clean))
+        self.status_bar.config(text="Ejecución completada")
 
     def exportar(self, lang):
         # primero validar
@@ -146,8 +320,10 @@ class PepsiIDE(tk.Tk):
             if fp:
                 with open(fp,"w",encoding="utf-8") as w:
                     w.write(txt)
+                self.status_bar.config(text=f"Archivo exportado a {lang.upper()}: {os.path.basename(fp)}")
         else:
             messagebox.showwarning("Exportar","No se generó el archivo traducido.")
+            self.status_bar.config(text="Exportación fallida")
 
 if __name__ == "__main__":
     app = PepsiIDE()
